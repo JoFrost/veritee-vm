@@ -1,0 +1,160 @@
+services:
+  guest-attestation:
+    image: guest-attestation
+    restart: "no"
+    env_file:
+      - ./.guest-attestation.env
+    volumes:
+      - static_attestation:/srv
+      - /root/application_disk_root_hash:/application_disk_root_hash
+    devices:
+      - /dev/tpmrm0:/dev/tpmrm0
+    networks:
+      - constrained-attestation
+
+  persist-init:
+    image: dapp:tee
+    restart: "no"
+    user: "0:0"
+    network_mode: "none"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mkdir -p /data/.azure /data/.docker /data/wallet-state
+        chmod 0700 /data /data/.azure /data/.docker /data/wallet-state
+    volumes:
+      - /mnt/persist/temenos-warden:/data
+
+  caddy:
+    image: caddy
+    restart: unless-stopped
+    depends_on:
+      persist-init:
+        condition: service_completed_successfully
+    extra_hosts:
+      - "attestation:host-gateway"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile.generated:/etc/caddy/Caddyfile:ro
+      - ${TEMENOS_TLS_CERTS_DIR:-./certs}:/certs:ro
+      - static_attestation:/srv
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      internet-access: {}
+      constrained-attestation:
+        aliases:
+          - caddy-in-constrained-attestation-generator-network
+      constrained-app: {}
+
+  app:
+    image: dapp:tee
+    ulimits:
+      core:
+        soft: 0
+        hard: 0
+    # Midnight's Node clients do not honor HTTP(S)_PROXY. The measured Warden
+    # profile grants only this fixed container IP direct Azure DNS and HTTPS.
+    dns:
+      - 168.63.129.16
+    restart: unless-stopped
+    depends_on:
+      persist-init:
+        condition: service_completed_successfully
+      proof-server:
+        condition: service_healthy
+    env_file:
+      - ./.warden.env
+    environment:
+      EARTHLY_ARG_FILE_PATH: "/etc/temenos/earthly-proxy.arg"
+      EARTHLY_CONFIG: "/etc/temenos/earthly-config.yml"
+      WARDEN_ENDPOINT: "0.0.0.0:3000"
+      WARDEN_ATTESTATION_NETWORK: "preprod"
+      WARDEN_ATTESTATION_CONTRACT: "b49a06484fd5c286f821e77586006fbf8a5dfcd93991a0eb13b6a2f6d1aab18a"
+      TEMENOS_INDEXER_HTTP_URL: "https://midnight-preprod.blockfrost.io/api/v0"
+      TEMENOS_INDEXER_WS_URL: "wss://midnight-preprod.blockfrost.io/api/v0/ws"
+      TEMENOS_NODE_URL: "https://rpc.midnight-preprod.blockfrost.io"
+      WARDEN_AZURE_LOGIN_WITH_MANAGED_IDENTITY: "1"
+      WARDEN_CHECK_TOOLCHAIN_ON_START: "1"
+      WARDEN_REQUIRE_DOCKER: "1"
+      WARDEN_WALLET_CHECKPOINT_ACCOUNT: "temenoswardenrecords"
+      WARDEN_WALLET_CHECKPOINT_RESOURCE_GROUP: "TEMENOS-WARDEN_GROUP"
+      WARDEN_WALLET_CHECKPOINT_CONTAINER: "warden-wallet-checkpoints"
+      WARDEN_WALLET_CHECKPOINT_INTERVAL_SECS: "43200"
+      TEMENOS_PROOF_SERVER_URL: "http://proof-server:6300"
+      TEMENOS_ACR_NAME: "temenostest"
+      TEMENOS_STORAGE_ACCOUNT: "temenoswardenrecords"
+      TEMENOS_VERIFICATIONS_CONTAINER: "temenos-verifications"
+      TEMENOS_VERIFICATIONS_TABLE: "temenosverificationindex"
+    ports:
+      - "127.0.0.1:8080:3000"
+    tmpfs:
+      - /run/temenos-warden:mode=0700
+    volumes:
+      - ./earthly-config.yml:/etc/temenos/earthly-config.yml:ro
+      - ./earthly-proxy.arg:/etc/temenos/earthly-proxy.arg:ro
+      - /mnt/persist/temenos-warden:/var/lib/temenos-warden
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      constrained-app: {}
+      warden-platform:
+        ipv4_address: 172.30.254.2
+
+  proof-server:
+    image: docker.io/midnightntwrk/proof-server:8.1.0-amd64@sha256:829d02876b346fe773d3d17419a38aadb9fafc6653603afbb3f16672bc122bd4
+    restart: unless-stopped
+    ulimits:
+      core:
+        soft: 0
+        hard: 0
+    environment:
+      PORT: "6300"
+      HTTP_PROXY: "http://egress-proxy:18080"
+      HTTPS_PROXY: "http://egress-proxy:18080"
+      NO_PROXY: "127.0.0.1,localhost,::1"
+    extra_hosts:
+      - "egress-proxy:172.30.255.1"
+    healthcheck:
+      test:
+        - CMD
+        - /bin/bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/6300 &&
+          printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          read -r status <&3 && [[ "$$status" == "HTTP/1.1 200"* ]]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+    networks:
+      - constrained-app
+
+volumes:
+  caddy_data:
+  caddy_config:
+  static_attestation:
+
+networks:
+  internet-access:
+    driver: bridge
+
+  constrained-attestation:
+    driver: bridge
+    internal: true
+
+  constrained-app:
+    driver: bridge
+    internal: true
+
+  # The measured Warden profile grants only this fixed address access to Azure
+  # IMDS. Child builds use the host proxy from a separately controlled bridge.
+  warden-platform:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.254.0/28

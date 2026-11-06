@@ -1,0 +1,24 @@
+{
+  # Caddy's private control API lets the guest helper read its TLS root CA.
+  admin caddy-in-constrained-attestation-generator-network:2019
+}
+
+warden.wastedp.io {
+	bind 0.0.0.0
+
+	root * /srv
+
+	handle_path /tee_attestation* {
+		reverse_proxy attestation:8000
+	}
+
+	handle /attestation.json {
+		file_server
+	}
+
+	handle {
+		reverse_proxy app:3000
+	}
+
+	{{ATTESTATION_TLS}}
+}

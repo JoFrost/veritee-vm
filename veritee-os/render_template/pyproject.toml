@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "veritee-render-template"
+version = "0.1.0"
+description = "Render Veritee OS configuration templates from YAML build profiles"
+authors = []
+license = "Apache-2.0"
+readme = "README.md"
+packages = [{ include = "render_template" }]
+repository = "https://github.com/input-output-hk/veritee-vm"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+jinja2 = "^3.1.2"
+pyyaml = "^6.0.1"
+
+
+[tool.poetry.scripts]
+render_template = "render_template.__main__:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

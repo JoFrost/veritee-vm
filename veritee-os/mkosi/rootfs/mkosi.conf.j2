@@ -1,0 +1,95 @@
+[Distribution]
+{% if azureSnp %}
+Distribution=ubuntu
+Release=jammy
+Repositories=main,universe,restricted
+{% else %}
+Distribution=debian
+Release=bookworm
+Repositories=contrib,non-free,non-free-firmware
+{% endif %}
+Architecture=x86-64
+
+[Build]
+ExtraSearchPaths=../../systemd/build
+
+[Content]
+Bootable=yes
+Bootloader=uki
+
+{% if debug %}
+RootPassword=root
+{% endif %}
+
+Packages=systemd=249.11-0ubuntu3.17
+         systemd-sysv=249.11-0ubuntu3.17
+         udev=249.11-0ubuntu3.17
+         kmod=29-1ubuntu1
+         dbus=1.12.20-2ubuntu4.1
+         tzdata=2025b-0ubuntu0.22.04.1
+         tpm2-tools=5.2-1build1
+         dmsetup=2:1.02.175-2.1ubuntu5
+         # Certificate trust and HTTPS access for Azure Key Vault.
+         ca-certificates=20240203~22.04.1
+         curl=7.81.0-1ubuntu1.21
+         {% if azureSnp %}
+         libtss2-dev=3.2.0-1ubuntu1.1
+         libxmlsec1=1.2.33-1build2
+         libxmlsec1-dev=1.2.33-1build2
+         libxml2-dev=2.9.13+dfsg-1ubuntu0.9
+         libssl-dev=3.0.2-0ubuntu1.20
+         pkg-config=0.29.2-1ubuntu3
+         linux-firmware=20220329.git681281e4-0ubuntu3.39
+         linux-tools-6.2.0-1018-azure=6.2.0-1018.18~22.04.1
+         linux-cloud-tools-6.2.0-1018-azure=6.2.0-1018.18~22.04.1
+         linux-modules-6.2.0-1018-azure=6.2.0-1018.18~22.04.1
+         linux-modules-extra-6.2.0-1018-azure=6.2.0-1018.18~22.04.1
+         linux-image-6.2.0-1018-azure=6.2.0-1018.18~22.04.1
+         linux-headers-6.2.0-1018-azure=6.2.0-1018.18~22.04.1
+         {% else %}
+         systemd-boot
+         systemd-resolved
+         firmware-misc-nonfree
+         firmware-linux
+         linux-image-cloud-amd64
+         linux-headers-cloud-amd64
+         {% endif %}
+         # Host confinement and persistent firewall rules.
+         apparmor=3.0.4-2ubuntu2.4
+         apparmor-utils=3.0.4-2ubuntu2.4
+         iptables-persistent=1.0.16
+
+         # Open verified filesystems and run measured setup.
+         cryptsetup-bin=2:2.4.3-1ubuntu1.3
+         python3=3.10.6-1~22.04.1
+
+        {% if debug %}
+         vim=2:8.2.3995-1ubuntu2.24
+         nano=6.2-1ubuntu0.1
+         apt=2.4.14
+         net-tools=1.60+git20181103.0eebece-1ubuntu5.4
+         git=1:2.34.1-1ubuntu1.15
+         build-essential=12.9ubuntu3
+         openssh-server=1:8.9p1-3ubuntu0.13
+        {% endif %}
+
+         # Container runtime and Compose.
+         docker-ce=5:29.2.1-1~ubuntu.22.04~jammy
+         docker-ce-cli=5:29.2.1-1~ubuntu.22.04~jammy
+         containerd.io=2.2.1-1~ubuntu.22.04~jammy
+         docker-compose-plugin=5.0.2-1~ubuntu.22.04~jammy
+         
+Initrds=../initrd/image
+KernelCommandLine={% if tty %} console=ttyS0 {% endif %}
+ systemd.volatile=overlay {% if azureSnp %} modules_load=ecdsa_generic modules_load=ecdh_generic {% endif %}
+#  rd.systemd.unit=emergency.target  
+# KernelCommandLine={% if tty %} console=ttyS0 systemd.log_level=debug systemd.log_target=console {% endif %}
+
+[Validation]
+# Write SHA256SUMS for the generated artifacts.
+Checksum=yes
+
+[Output]
+Format = disk
+ManifestFormat = json
+Seed=dbdda217-e7c1-4970-91b2-0f08656570f1

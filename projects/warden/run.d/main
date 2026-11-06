@@ -1,0 +1,181 @@
+#!/bin/bash
+
+set -euo pipefail
+
+cd /root/run.d
+
+tls_mode="$(cat .temenos-tls-mode)"
+if [ "$tls_mode" != "azure_vault" ]; then
+    echo "The Warden DApp requires azure_vault TLS mode" >&2
+    exit 1
+fi
+
+certs_dir="${TEMENOS_TLS_CERTS_DIR:-/run/temenos/tls}"
+export TEMENOS_TLS_CERTS_DIR="$certs_dir"
+
+keyvault_name="${TEMENOS_TLS_KEYVAULT_NAME:-}"
+if [ -z "$keyvault_name" ]; then
+    keyvault_name="$(
+        curl -fsS -H Metadata:true \
+            "http://169.254.169.254/metadata/instance/compute/tagsList?api-version=2021-02-01" \
+            | python3 -c 'import json,sys; data=json.load(sys.stdin); tags=data.get("tagsList", data) if isinstance(data, dict) else data; print(next((tag.get("value", "") for tag in tags if tag.get("name") == "temenos_tls_keyvault_name"), ""), end="")'
+    )"
+fi
+
+subscription_id="$(
+    curl -fsS -H Metadata:true \
+        "http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01" \
+        | python3 -c 'import json,sys; print(json.load(sys.stdin).get("subscriptionId", ""), end="")'
+)"
+case "$subscription_id" in
+    ????????-????-????-????-????????????) ;;
+    *)
+        echo "Azure IMDS returned an invalid subscription id" >&2
+        exit 1
+        ;;
+esac
+
+if [ "${#keyvault_name}" -lt 3 ] || [ "${#keyvault_name}" -gt 24 ]; then
+    echo "Invalid Azure Key Vault name length" >&2
+    exit 1
+fi
+case "$keyvault_name" in
+    [abcdefghijklmnopqrstuvwxyz]*[abcdefghijklmnopqrstuvwxyz0123456789]) ;;
+    *)
+        echo "Invalid or missing Azure Key Vault name" >&2
+        exit 1
+        ;;
+esac
+case "$keyvault_name" in
+    *[!abcdefghijklmnopqrstuvwxyz0123456789-]*|*--*)
+        echo "Invalid Azure Key Vault name: $keyvault_name" >&2
+        exit 1
+        ;;
+esac
+
+fetch_secret() {
+    name="$1"
+    curl -fsS \
+        -H "Authorization: Bearer $token" \
+        "https://${keyvault_name}.vault.azure.net/secrets/${name}?api-version=2025-07-01" \
+        | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"], end="")'
+}
+
+if [ ! -f "$certs_dir/fullchain.pem" ] || [ ! -f "$certs_dir/privkey.pem" ]; then
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "$tmp_dir"' EXIT
+
+    attempt=1
+    while [ "$attempt" -le 60 ]; do
+        if token="$(
+            curl -fsS -H Metadata:true \
+                "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net" \
+                | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"], end="")'
+        )" \
+            && fetch_secret "${TEMENOS_TLS_FULLCHAIN_SECRET:-temenos-tls-fullchain-pem}" > "$tmp_dir/fullchain.pem" \
+            && fetch_secret "${TEMENOS_TLS_PRIVKEY_SECRET:-temenos-tls-privkey-pem}" > "$tmp_dir/privkey.pem"; then
+            break
+        fi
+
+        if [ "$attempt" -eq 60 ]; then
+            echo "Failed to fetch Warden TLS certificate from $keyvault_name" >&2
+            exit 1
+        fi
+        attempt=$((attempt + 1))
+        sleep 5
+    done
+
+    install -d -m 0700 "$certs_dir"
+    install -m 0644 "$tmp_dir/fullchain.pem" "$certs_dir/fullchain.pem"
+    install -m 0600 "$tmp_dir/privkey.pem" "$certs_dir/privkey.pem"
+    rm -rf "$tmp_dir"
+    trap - EXIT
+fi
+
+cat > .warden.env <<EOF
+ARM_SUBSCRIPTION_ID=$subscription_id
+WARDEN_SEED_KEYVAULT_NAME=$keyvault_name
+WARDEN_SEED_SECRET_NAME=${WARDEN_SEED_SECRET_NAME:-preprod-warden-wallet-seed-v2}
+WARDEN_BLOCKFROST_KEYVAULT_NAME=${WARDEN_BLOCKFROST_KEYVAULT_NAME:-$keyvault_name}
+WARDEN_BLOCKFROST_SECRET_NAME=${WARDEN_BLOCKFROST_SECRET_NAME:-blockfrost-midnight-preprod-project-id}
+EOF
+chmod 0600 .warden.env
+
+builder_gateway="$(
+    docker network inspect \
+        --format '{{(index .IPAM.Config 0).Gateway}}' \
+        temenos-builder
+)"
+if [ "$builder_gateway" != "172.29.254.1" ]; then
+    echo "Invalid temenos-builder gateway: $builder_gateway" >&2
+    exit 1
+fi
+export TEMENOS_BUILDER_GATEWAY="$builder_gateway"
+
+warden_persist_dir=/mnt/persist/temenos-warden
+earthly_cache_dir="$warden_persist_dir/earthly-cache"
+install -d -m 0700 "$warden_persist_dir/.docker" "$earthly_cache_dir"
+
+if docker volume inspect earthly-cache >/dev/null 2>&1; then
+    cache_type="$(docker volume inspect --format '{{ index .Options "type" }}' earthly-cache)"
+    cache_options="$(docker volume inspect --format '{{ index .Options "o" }}' earthly-cache)"
+    cache_device="$(docker volume inspect --format '{{ index .Options "device" }}' earthly-cache)"
+    if [ "$cache_type" != "none" ] || [ "$cache_options" != "bind" ] || [ "$cache_device" != "$earthly_cache_dir" ]; then
+        echo "Existing earthly-cache volume is not backed by $earthly_cache_dir" >&2
+        exit 1
+    fi
+else
+    docker volume create \
+        --driver local \
+        --opt type=none \
+        --opt o=bind \
+        --opt "device=$earthly_cache_dir" \
+        earthly-cache >/dev/null
+fi
+
+python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+path = Path("/mnt/persist/temenos-warden/.docker/config.json")
+config = {}
+if path.exists():
+    config = json.loads(path.read_text())
+config["proxies"] = {
+    "default": {
+        "httpsProxy": f"http://{os.environ['TEMENOS_BUILDER_GATEWAY']}:18080",
+        "noProxy": "127.0.0.1,localhost,::1,169.254.169.254,168.63.129.16",
+    }
+}
+temporary = path.with_suffix(".tmp")
+temporary.write_text(json.dumps(config, sort_keys=True, separators=(",", ":")) + "\n")
+os.chmod(temporary, 0o600)
+temporary.replace(path)
+PY
+
+site_host="$(awk '
+    /^[[:space:]]*#/ || NF == 0 { next }
+    $1 == "}" { depth--; next }
+    depth == 0 && NF >= 2 && $NF == "{" && $1 != "{" { print $1; exit }
+    $NF == "{" { depth++ }
+' Caddyfile.template)"
+if [ -z "$site_host" ]; then
+    echo "Could not extract the Warden hostname from Caddyfile.template" >&2
+    exit 1
+fi
+
+cat > .guest-attestation.env <<EOF
+TEMENOS_TLS_MODE=azure_vault
+TEMENOS_TLS_EVIDENCE_MODE=spki
+TEMENOS_ATTESTATION_TLS_HOST=$site_host
+TEMENOS_APP_TLS_HOST=$site_host
+TEMENOS_CADDY_CONNECT_HOST=caddy-in-constrained-attestation-generator-network
+TEMENOS_CADDY_CONNECT_PORT=443
+EOF
+
+sed \
+    -e 's|{{ATTESTATION_TLS}}|tls /certs/fullchain.pem /certs/privkey.pem|g' \
+    Caddyfile.template > Caddyfile.generated
+
+docker compose up -d

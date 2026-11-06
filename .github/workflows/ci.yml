@@ -1,0 +1,262 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  os-profiles:
+    name: OS release/debug profiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install template renderer
+        run: pip install ./veritee-os/render_template
+
+      - name: Install iptables parser
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends iptables
+
+      - name: Test release/debug profile rendering
+        run: python -m unittest discover -s veritee-os/render_template/tests -p 'test_*.py' -v
+
+  measured-setup:
+    name: Measured setup (unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run PCR15 setup tests
+        run: python -m unittest discover -s veritee-os/measured_setup -p 'test_*.py' -v
+
+  egress-policy:
+    name: Measured outbound policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Veritee CLI
+        run: pip install --editable ./cli
+
+      - name: Test build-time policy resolution
+        env:
+          PYTHONPATH: cli
+        run: python -m unittest discover -s cli/tests -p 'test_outbound_policy.py' -v
+
+      - name: Test in-guest firewall enforcement
+        run: python -m unittest discover -s veritee-os/measured_setup -p 'test_egress.py' -v
+
+  egress-proxy:
+    name: Egress gateway (test / clippy / fmt / locked build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/egress_proxy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.89.0
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server/egress_proxy
+
+      - name: Format check
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --locked --all-targets
+
+      - name: Release build
+        run: cargo build --release --locked
+
+      - name: Dependency audit
+        run: |
+          cargo install cargo-audit --version 0.22.2 --locked
+          RUST_LOG=warn cargo audit --deny warnings
+
+  akx:
+    name: AKX crypto core (test / clippy / fmt)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/akx
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server/akx
+
+      - name: Format check
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --all-targets
+
+  guest-attestation:
+    name: Guest attestation (pinned inputs / image smoke test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install locked generator test dependencies
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: --no-deps \
+            -r server/guest_attestation/requirements.lock
+
+      - name: Check generator build inputs and measurement behavior
+        run: python -m unittest discover -s server/guest_attestation/tests -v
+
+      - name: Build generator image
+        run: docker build --platform linux/amd64 -t guest-attestation:ci server/guest_attestation
+
+      - name: Smoke test Python dependencies and TPM tools
+        run: |
+          docker run --rm --entrypoint python guest-attestation:ci -m pip check
+          docker run --rm --entrypoint python guest-attestation:ci -c 'import cryptography, requests'
+          docker run --rm --entrypoint tpm2_quote guest-attestation:ci --version
+
+      - name: Test the generic DApp host proxy hop and private network
+        run: |
+          python -m pip install PyYAML==6.0
+          python scripts/test-dapp-proxy-hop.py
+          python scripts/test-dapp-proxy-hop.py --app-port 6300
+
+  attestation-server-build:
+    name: Attestation server (compile check)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server/azure_attestation_server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies (TPM / TSS / OpenSSL)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config clang libssl-dev libtss2-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.89.0
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server/azure_attestation_server
+
+      - name: Build default attestation server
+        run: cargo build --locked
+
+      - name: Test production request policy
+        run: cargo test --locked 'attestation_input_tests::'
+
+      - name: Test encrypted HTTP tunnel
+        run: cargo test --locked 'proxy_routes::tests::'
+
+      - name: Test debug request policy (MAA)
+        run: cargo test --locked --no-default-features --features "maa,dev-unbound-attestation" 'attestation_input_tests::'
+
+      - name: Test debug request policy (raw SEV-SNP)
+        run: cargo test --locked --no-default-features --features "raw-report,dev-unbound-attestation" 'attestation_input_tests::'
+
+  cli-tests:
+    name: Veritee CLI helper tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Veritee CLI
+        run: pip install --editable ./cli
+
+      - name: Run CLI helper tests
+        run: python -m unittest discover -s cli/tests -p 'test_cli_helpers.py' -v
+
+      - name: Test measured proxy route policy
+        run: python -m unittest discover -s cli/tests -p 'test_proxy_policy.py' -v
+
+  python-client:
+    name: Attested-channel Python client (interop)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server/akx
+
+      # Build the interop harness (real `akx` crypto over stdin/stdout) that the
+      # Python client is exercised against end to end.
+      - name: Build enclave_stub interop harness
+        working-directory: server/akx
+        run: cargo build --example enclave_stub
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python deps
+        run: pip install ./cli pytest
+
+      - name: Run attested-channel client tests
+        working-directory: cli/tests
+        run: python -m pytest test_attested_channel.py -v
+
+      - name: Run ingress policy tests
+        working-directory: cli/tests
+        run: python -m unittest test_ingress_policy.py -v
+
+      - name: Run CLI helper tests
+        env:
+          PYTHONPATH: cli
+        run: python -m unittest discover -s cli/tests -p 'test_cli_helpers.py' -v

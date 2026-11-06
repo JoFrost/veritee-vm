@@ -1,0 +1,15 @@
+[Unit]
+Description=Azure Provisioning
+After=systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /var/azure-provisioning.py
+ExecStart=/usr/bin/systemctl disable azure-provisioning.service
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

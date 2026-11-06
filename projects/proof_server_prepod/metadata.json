@@ -1,0 +1,15 @@
+{
+    "name": "Midnight Proof Server - preprod",
+    "description": "Allows to invoke zero-knowledge (ZK) functionality and generate ZK proofs for your transactions.",
+    "app_container_image": "docker.io/midnightntwrk/proof-server:8.1.0-amd64@sha256:829d02876b346fe773d3d17419a38aadb9fafc6653603afbb3f16672bc122bd4",
+    "base_os_image": "temenostest.azurecr.io/temenos/base-os:0.5.3-raw-sev-snp@sha256:b1cbc60dc3377de94dd641d249865f751bbc9c51c505ea2feb5e8f22c31d4027",
+    "base_os_version": "0.5.3-raw-sev-snp",
+    "proxy_allowed_paths": ["/check", "/prove"],
+    "outbound_policy_version": 2,
+    "outbound": [
+        {
+            "host": "srs.midnight.network",
+            "ports": [443]
+        }
+    ]
+}

@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+mount_point="/mnt/persist"
+device="PARTUUID=cc428aef-829d-4387-94e8-fb81df661bd8"
+attempts="${TEMENOS_PERSIST_MOUNT_ATTEMPTS:-60}"
+sleep_seconds="${TEMENOS_PERSIST_MOUNT_SLEEP_SECONDS:-2}"
+
+prepare_persist_mount() {
+    chmod 0755 "$mount_point"
+}
+
+mkdir -p "$mount_point"
+
+if mountpoint -q "$mount_point"; then
+    prepare_persist_mount
+    exit 0
+fi
+
+attempt=1
+while [ "$attempt" -le "$attempts" ]; do
+    if mountpoint -q "$mount_point"; then
+        prepare_persist_mount
+        exit 0
+    fi
+
+    if findfs "$device" >/dev/null 2>&1 && mount "$mount_point" 2>/dev/null; then
+        prepare_persist_mount
+        exit 0
+    fi
+
+    echo "Persist partition $device is not available yet (attempt $attempt/$attempts)" >&2
+    attempt=$((attempt + 1))
+    sleep "$sleep_seconds"
+done
+
+echo "Persist partition $device did not become available" >&2
+exit 1

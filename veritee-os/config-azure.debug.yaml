@@ -1,0 +1,7 @@
+# Debug profile: enable SSH and a root account with password "root".
+# Use this profile only for troubleshooting.
+debug: true
+# Enable the serial console for debugging.
+tty: true
+# Use the pinned kernel and package set for Azure confidential VMs.
+azureSnp: true

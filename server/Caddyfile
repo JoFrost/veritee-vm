@@ -1,0 +1,27 @@
+{
+  admin 0.0.0.0:2019
+}
+
+
+attestation_endpoint {
+	# Bind to all network interfaces
+	bind 0.0.0.0
+	
+	root * /srv
+	
+	file_server
+
+	# Use self-signed certificates
+	tls internal
+}
+
+service:8443 {
+	# Bind to all network interfaces
+	bind 0.0.0.0
+
+	# Use self-signed certificates
+	tls internal
+
+	# Reverse proxy to the service
+	reverse_proxy app:80
+}

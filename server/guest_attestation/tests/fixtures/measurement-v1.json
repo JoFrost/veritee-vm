@@ -1,0 +1,74 @@
+{
+  "app_root_hash": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "setup_pcr15": "cd210aa8ab08a8d693f12b93b7a14345ebb5a44fc9c3314efc71a7e68a0ae4ca",
+  "internal_ca_input": "-----BEGIN CERTIFICATE-----\nsynthetic-vector-only\n-----END CERTIFICATE-----\n",
+  "internal_tls_digest": "3b710ed972737f6f3c4dabe499a42860896689e07b0ee0451237f3ac2ec6e18e",
+  "internal_final_pcr15": "a7f9bf097900f05c5a5606a78d4f0a9792e07789034afa1911b3e58d276d1942",
+  "spki_evidence": {
+    "mode": "spki",
+    "connect_host": "caddy-in-constrained-attestation-generator-network",
+    "connect_port": 443,
+    "endpoints": {
+      "attestation": {
+        "host": "attestation.example.test",
+        "spki_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "api": {
+        "host": "api.example.test",
+        "spki_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+      }
+    }
+  },
+  "spki_tls_digest": "80a63402df79981e25c327be69cea6f9887021ec4ac9940410972fe9c929a8a4",
+  "spki_final_pcr15": "339924ae423bdf4a6a4a3960f1b2ebabd54361b2972878f75e2d4c240ae16445",
+  "internal_payload": {
+    "version": "1",
+    "cert_chain": [
+      "fixture-aik",
+      "fixture-intermediate",
+      "fixture-root"
+    ],
+    "webserver_rootca": "-----BEGIN CERTIFICATE-----\nsynthetic-vector-only\n-----END CERTIFICATE-----\n",
+    "webserver_tls": {
+      "mode": "internal_ca",
+      "root_ca_sha256": "558f2cb4327bad86df8fb34ba5459da8238af5b024e21e32accf5898c1539c09"
+    },
+    "quote": {
+      "message": "fixture-message",
+      "signature": "fixture-signature",
+      "pcr": "fixture-pcr"
+    },
+    "application_disk_roothash": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\n"
+  },
+  "internal_wire_json": "{\"version\": \"1\", \"cert_chain\": [\"fixture-aik\", \"fixture-intermediate\", \"fixture-root\"], \"webserver_rootca\": \"-----BEGIN CERTIFICATE-----\\nsynthetic-vector-only\\n-----END CERTIFICATE-----\\n\", \"webserver_tls\": {\"mode\": \"internal_ca\", \"root_ca_sha256\": \"558f2cb4327bad86df8fb34ba5459da8238af5b024e21e32accf5898c1539c09\"}, \"quote\": {\"message\": \"fixture-message\", \"signature\": \"fixture-signature\", \"pcr\": \"fixture-pcr\"}, \"application_disk_roothash\": \"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\\n\"}",
+  "spki_payload": {
+    "version": "1",
+    "cert_chain": [
+      "fixture-aik",
+      "fixture-intermediate",
+      "fixture-root"
+    ],
+    "webserver_tls": {
+      "mode": "spki",
+      "connect_host": "caddy-in-constrained-attestation-generator-network",
+      "connect_port": 443,
+      "endpoints": {
+        "attestation": {
+          "host": "attestation.example.test",
+          "spki_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "api": {
+          "host": "api.example.test",
+          "spki_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+        }
+      }
+    },
+    "quote": {
+      "message": "fixture-message",
+      "signature": "fixture-signature",
+      "pcr": "fixture-pcr"
+    },
+    "application_disk_roothash": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\n"
+  },
+  "spki_wire_json": "{\"version\": \"1\", \"cert_chain\": [\"fixture-aik\", \"fixture-intermediate\", \"fixture-root\"], \"webserver_tls\": {\"mode\": \"spki\", \"connect_host\": \"caddy-in-constrained-attestation-generator-network\", \"connect_port\": 443, \"endpoints\": {\"attestation\": {\"host\": \"attestation.example.test\", \"spki_sha256\": \"1111111111111111111111111111111111111111111111111111111111111111\"}, \"api\": {\"host\": \"api.example.test\", \"spki_sha256\": \"2222222222222222222222222222222222222222222222222222222222222222\"}}}, \"quote\": {\"message\": \"fixture-message\", \"signature\": \"fixture-signature\", \"pcr\": \"fixture-pcr\"}, \"application_disk_roothash\": \"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\\n\"}"
+}

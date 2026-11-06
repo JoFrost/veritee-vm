@@ -1,0 +1,12 @@
+[Unit]
+Description=Ephemeral containerd state (tmpfs)
+Before=containerd.service docker.service
+
+[Mount]
+What=tmpfs
+Where=/var/lib/containerd
+Type=tmpfs
+Options=mode=0755,nosuid,nodev,size=40%
+
+[Install]
+WantedBy=multi-user.target

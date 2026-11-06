@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "purpose": "Public interoperability fixture only. Not a release or enrolled production key.",
+  "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZAVWUiLQdnprDz/UF38RWeaKkC3t\nbohsg2TSGWHooPJ7Audea9Y0Ay+IAvI5rGReOp3XdDeiknO7j1g7eC2nvw==\n-----END PUBLIC KEY-----\n",
+  "audience": {
+    "warden_id": "fixture-warden",
+    "network": "preprod",
+    "os_registry_address": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "manifest_digest": "sha256:02d0852a0c4b512e93bef5cbc376b4f30dc4a4dd76615fc9d16ec757ec7772cd",
+  "envelope": {
+    "manifest": "{\"artifacts\":[{\"name\":\"disk.raw\",\"sha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"size\":\"1024\"},{\"name\":\"pcrs.json\",\"sha256\":\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"size\":\"256\"}],\"attestation_mode\":\"raw-sev-snp\",\"build\":{\"arguments\":{\"ALLOW_UNBOUND_ATTESTATION\":false,\"ATTESTATION_MODE\":\"raw-sev-snp\"},\"command\":\"build-base-os-image\",\"configuration\":\"config-snp-azure.yaml\",\"earthly_target\":\"+temen-os-tpm\",\"profile\":\"azure-snp\",\"recipe_version\":1},\"measurements\":{\"pcr4\":\"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"pcr4_bank\":\"sha256\",\"pcr4_profile\":\"azure_cvm\"},\"publication\":{\"platform\":\"linux/amd64\",\"reference\":\"registry.example/temenos/os:v1@sha256:1111111111111111111111111111111111111111111111111111111111111111\"},\"release_id\":\"test-os-release-v1\",\"release_version\":\"0.6.0-raw-sev-snp\",\"source\":{\"commit\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"modified\":false,\"repository\":\"https://github.com/input-output-hk/temenos-vm\",\"tree\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"},\"version\":1}",
+    "jws": {
+      "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6InNoYTI1NjoxNmMxNzY4MmU0NWE3NDZlZDMyMWNlMzFkNjNiZmM4NDY0ZmEyMWM3YmY0MjA3NmNmM2E3MjgxYjgwODNiZWZkIiwidHlwIjoiYXBwbGljYXRpb24vdGVtZW5vcy1vcy1yZWxlYXNlLWFwcHJvdmFsK2p3cyJ9",
+      "payload": "eyJhdWRpZW5jZSI6eyJuZXR3b3JrIjoicHJlcHJvZCIsIm9zX3JlZ2lzdHJ5X2FkZHJlc3MiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwid2FyZGVuX2lkIjoiZml4dHVyZS13YXJkZW4ifSwiZGVjaXNpb24iOiJhcHByb3ZlIiwiZXhwaXJlc19hdCI6IjIwMjYtMTAtMjZUMTM6MDA6MDBaIiwib3BlcmF0aW9uIjoiYXBwcm92ZV9yZWxlYXNlIiwicmVsZWFzZV9pZCI6InRlc3Qtb3MtcmVsZWFzZS12MSIsInJlbGVhc2VfbWFuaWZlc3RfZGlnZXN0Ijoic2hhMjU2OjAyZDA4NTJhMGM0YjUxMmU5M2JlZjVjYmMzNzZiNGYzMGRjNGE0ZGQ3NjYxNWZjOWQxNmVjNzU3ZWM3NzcyY2QiLCJyZXF1ZXN0X2lkIjoiZml4dHVyZS1yZXF1ZXN0LTEiLCJzaWduZWRfYXQiOiIyMDI2LTEwLTI2VDEyOjAwOjAwWiIsInR5cGUiOiJ0ZW1lbm9zX29zX3JlbGVhc2VfYXBwcm92YWwiLCJ2ZXJzaW9uIjoxfQ",
+      "signature": "uZ9Bp0LU9PP8BthDFJequ5qgSMbt6s6zdaCsSo4H4c2EndR9ln7QLoggSlmp2SV8UgxUMxLkXE6j3OJbMqbENA"
+    }
+  }
+}

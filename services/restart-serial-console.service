@@ -1,0 +1,10 @@
+[Unit]
+Description=Restart serial console
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl restart serial-getty@ttyS0
+
+[Install]
+WantedBy=multi-user.target

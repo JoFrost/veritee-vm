@@ -1,0 +1,10 @@
+{
+    "name": "Temenos Warden",
+    "description": "Attestation verifier, policy registry, and reproducible DApp build worker for Temenos.",
+    "app_container_image": "temenostest.azurecr.io/dapp/temenos-warden@sha256:baaec86b7b864b442a97a23d839172fe1b8ccf070baddc06e6c15722ebaeb67a",
+    "base_os_image": "temenostest.azurecr.io/temenos/base-os@sha256:9bdd5be81a9aae927e93fb5085edac9caf42fec2f238373d0f3e38064888e858",
+    "base_os_version": "0.5.2-raw-sev-snp",
+    "persist_size": "32G",
+    "outbound_policy_version": 2,
+    "egress_profile": "warden"
+}

@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "veritee"
+version = "0.2.0"
+description = "Build, deploy and verify Veritee confidential VM applications"
+license = "Apache-2.0"
+authors = []
+packages = [{ include = "veritee" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+rich = { version = "^13.3.5" }
+pyyaml = { version = "^6.0" }
+pydantic = "2.6.3"
+pyopenssl = { version = "^23.2.0" }
+inquirer = { version = "^3.1" }
+typer = {extras = ["all"], version = "^0.9.0"}
+importlib-metadata = "^6.8.0"
+requests = "^2.31.0"
+sseclient = "^0.0.27"
+click = ">=8.1.7,<8.2.0"
+cryptography = "^41.0.7"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+veritee = 'veritee.cli:app'

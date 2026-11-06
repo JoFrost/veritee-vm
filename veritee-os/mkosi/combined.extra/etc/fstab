@@ -1,0 +1,6 @@
+tmpfs /tmp tmpfs mode=1777,strictatime,nosuid,nodev,size=30% 0 0
+# no need to set up manually a tmpfs on /run since systemd already does it for us
+# tmpfs on /run type tmpfs (rw,nosuid,nodev,size=404848k,nr_inodes=819200,mode=755,inode64)
+tmpfs /var/lib/docker tmpfs mode=1777,strictatime,nosuid,nodev,size=40% 0 0
+tmpfs /var/lib/containerd tmpfs mode=0755,nosuid,nodev,size=40% 0 0
+PARTUUID=cc428aef-829d-4387-94e8-fb81df661bd8 /mnt/persist ext4 defaults,noauto,nofail 0 2

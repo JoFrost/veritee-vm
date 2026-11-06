@@ -1,0 +1,45 @@
+#!/bin/bash
+
+echo "Removing Systemd GPT auto generator"
+rm $BUILDROOT/usr/lib/systemd/system-generators/systemd-gpt-auto-generator
+
+echo "adding blacklist.conf"
+cp blacklist.conf $BUILDROOT/etc/modprobe.d/
+
+{% if debug %}
+mkdir $BUILDROOT/root/.ssh/
+echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDGOlXQ0Z++7BGaLFeJfb8jFQJlFQ64wQe0f/IVaFnocSPqOdsrEBhlwglJYFQO/LCNrNDwKIEdvPTlqpwMbLX/foTVMkmIH0ckGdR3p5k9YftWBBiskQ1wFIkWFq3sfiN2SbfJcUCRUWvOP7JGd/QyS30VDTGIv0uvGp3jo8hyd/9Iev9LIXed6bmHWfRwahGszxkcRDqo90L6s+e5yAcnKkk3Ia6l1+ZItbz0BFsm4k9M96U3JaZ6ZEBPBrI5jGtHZgY+O4LXbPxr1jjWZyg7dWMmQEhKKTRpSCQ+PN56wHYoqpyoDiR9OSx5IFsQsLmmJR2vfI8L95evrbMn9qqFSc/rnXOpZB+lufVN+fIE2tvlTOQTywkt5t6/Cg4oXXhfmyUESHBXXfNH9NBuJcAEpTo4uFaMNDWnTvCmR742UWesyYJtvk5UzkMUFZtShXOtl6J73k01pAjjoxem/Giv+rc1kO7aRN356JCXmk2Y51fw8JWBsGpJoSQ1iQHfyIE= knux@DESKTOP-SNQL9OO" >> $BUILDROOT/root/.ssh/authorized_keys
+sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/g' $BUILDROOT/etc/ssh/sshd_config
+{% endif %}
+
+rm -f "$BUILDROOT/var/log/alternatives.log" \
+      "$BUILDROOT/var/log/dpkg.log" \
+      "$BUILDROOT/var/log/apt/history.log" \
+      "$BUILDROOT/var/log/apt/term.log" 2>/dev/null || true
+
+rm -rf "$BUILDROOT/var/log/"* 2>/dev/null || true
+
+rm -f "$BUILDROOT/etc/ld.so.cache" 2>/dev/null || true
+rm -rf "$BUILDROOT/var/cache/ldconfig" 2>/dev/null || true
+
+rm -rf "$BUILDROOT/var/lib/apt/lists/"* 2>/dev/null || true
+rm -rf "$BUILDROOT/var/cache/apt/"* 2>/dev/null || true
+rm -rf "$BUILDROOT/var/cache/debconf/"* 2>/dev/null || true
+
+rm -f "$BUILDROOT/var/lib/systemd/random-seed" 2>/dev/null || true
+echo "44b8a2ab629c453db82ad137d2db2a1d" > "$BUILDROOT/etc/machine-id"
+chmod 0644 "$BUILDROOT/etc/machine-id"
+rm -f "$BUILDROOT/var/lib/dbus/machine-id" 2>/dev/null || true
+ln -sf /etc/machine-id "$BUILDROOT/var/lib/dbus/machine-id" 2>/dev/null || true
+
+rm -f "$BUILDROOT/etc/ld.so.cache" 2>/dev/null || true
+
+if command -v touch >/dev/null 2>&1; then
+  find "$BUILDROOT" -xdev -type f -print0 | xargs -0 touch -d @0 2>/dev/null || true
+  find "$BUILDROOT" -xdev -type l -print0 | xargs -0 touch -h -d @0 2>/dev/null || true
+fi
+
+rm -rf "$BUILDROOT/opt/attestation_server/target" 2>/dev/null || true
+rm -rf "$BUILDROOT/opt/cargo" "$BUILDROOT/opt/rustup" 2>/dev/null || true
+rm -rf "$BUILDROOT/root/.cargo" "$BUILDROOT/root/.rustup" 2>/dev/null || true
+rm -rf "$BUILDROOT/home/"*"/.cargo" "$BUILDROOT/home/"*"/.rustup" 2>/dev/null || true

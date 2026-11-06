@@ -1,0 +1,7 @@
+{
+    "name": "Example DApp",
+    "description": "Demo DApp packaged for Temenos Azure SNP deployment",
+    "app_container_image": "myregistry.azurecr.io/dapp/example:latest",
+    "base_os_image": "temenostest.azurecr.io/temenos/base-os:0.1.2"
+}
+

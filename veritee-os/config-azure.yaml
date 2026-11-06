@@ -1,0 +1,6 @@
+# Release profile: keep root login and debug services disabled.
+debug: false
+# Keep serial console access disabled in release images.
+tty: false
+# Use the pinned kernel and package set for Azure confidential VMs.
+azureSnp: true

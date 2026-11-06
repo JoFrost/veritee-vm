@@ -1,0 +1,192 @@
+services:
+  guest-attestation:
+    image: guest-attestation
+    restart: "no"
+    env_file:
+      - ./.guest-attestation.env
+    volumes:
+      - static_attestation:/srv
+      - /root/application_disk_root_hash:/application_disk_root_hash
+    devices:
+      - /dev/tpmrm0:/dev/tpmrm0
+    networks:
+      - constrained-attestation
+
+  persist-init:
+    image: dapp:tee
+    restart: "no"
+    user: "0:0"
+    network_mode: "none"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        umask 077
+        mkdir -p /data
+        if [ ! -e /data/.indexer-secret ]; then
+            secret="$$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
+            printf '%s\n' "$$secret" > /data/.indexer-secret
+        fi
+        if ! grep -Eq '^[0-9a-f]{64}$$' /data/.indexer-secret; then
+            echo "Invalid existing indexer secret; refusing to replace it" >&2
+            exit 1
+        fi
+        chown 10001:10001 /data /data/.indexer-secret
+        chmod 0700 /data
+        chmod 0600 /data/.indexer-secret
+    volumes:
+      - /mnt/persist/indexer-standalone:/data
+
+  rpc-forwarder:
+    image: guest-attestation
+    restart: unless-stopped
+    user: "10001:10001"
+    entrypoint: ["python3", "-u", "-c"]
+    command:
+      - |
+        import asyncio
+        import contextlib
+        import logging
+
+        DESTINATION = "rpc.preprod.midnight.network:443"
+        PROXY_HOST = "egress-proxy"
+        PROXY_PORT = 18080
+        CONNECT_TIMEOUT = 15
+        MAX_CONNECTIONS = 16
+        active_connections = 0
+
+        async def relay(reader, writer):
+            while data := await reader.read(65536):
+                writer.write(data)
+                await writer.drain()
+
+        async def handle_connection(reader, writer):
+            global active_connections
+            if active_connections >= MAX_CONNECTIONS:
+                writer.close()
+                await writer.wait_closed()
+                return
+            active_connections += 1
+            upstream_writer = None
+            tasks = []
+            try:
+                upstream_reader, upstream_writer = await asyncio.wait_for(
+                    asyncio.open_connection(PROXY_HOST, PROXY_PORT, limit=8192),
+                    CONNECT_TIMEOUT,
+                )
+                upstream_writer.write(
+                    f"CONNECT {DESTINATION} HTTP/1.1\r\nHost: {DESTINATION}\r\n\r\n".encode("ascii")
+                )
+                await upstream_writer.drain()
+                headers = await asyncio.wait_for(
+                    upstream_reader.readuntil(b"\r\n\r\n"), CONNECT_TIMEOUT
+                )
+                status = headers.split(b"\r\n", 1)[0].split()
+                if len(headers) > 8192 or len(status) < 2 or status[1] != b"200":
+                    raise ConnectionError("Measured egress proxy refused the RPC tunnel")
+                logging.info("RPC tunnel established through measured egress")
+                tasks = [
+                    asyncio.create_task(relay(reader, upstream_writer)),
+                    asyncio.create_task(relay(upstream_reader, writer)),
+                ]
+                await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError,
+                    asyncio.LimitOverrunError) as error:
+                logging.warning("RPC tunnel failed: %s", type(error).__name__)
+            finally:
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                for connection in (writer, upstream_writer):
+                    if connection is not None:
+                        connection.close()
+                        with contextlib.suppress(OSError):
+                            await connection.wait_closed()
+                active_connections -= 1
+
+        async def main():
+            server = await asyncio.start_server(handle_connection, "0.0.0.0", 443)
+            logging.info("RPC forwarder ready; only %s is reachable", DESTINATION)
+            async with server:
+                await server.serve_forever()
+
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+        asyncio.run(main())
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    extra_hosts:
+      - "egress-proxy:172.30.255.1"
+    networks:
+      constrained-app:
+        aliases:
+          - rpc.preprod.midnight.network
+
+  caddy:
+    image: caddy
+    restart: unless-stopped
+    extra_hosts:
+      - "attestation:host-gateway"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile.generated:/etc/caddy/Caddyfile:ro
+      - ${TEMENOS_TLS_CERTS_DIR:-./certs}:/certs:ro
+      - static_attestation:/srv
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      internet-access: {}
+      constrained-attestation:
+        aliases:
+          - caddy-in-constrained-attestation-generator-network
+      constrained-app: {}
+
+  app:
+    image: dapp:tee
+    restart: unless-stopped
+    depends_on:
+      persist-init:
+        condition: service_completed_successfully
+      rpc-forwarder:
+        condition: service_started
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        if ! grep -Eq '^[0-9a-f]{64}$$' /data/.indexer-secret; then
+            echo "Missing or invalid indexer runtime secret" >&2
+            exit 1
+        fi
+        export APP__INFRA__SECRET="$$(cat /data/.indexer-secret)"
+        exec /usr/local/bin/entrypoint.sh
+    environment:
+      APP__APPLICATION__NETWORK_ID: preprod
+      APP__INFRA__NODE__URL: wss://rpc.preprod.midnight.network
+      APP__INFRA__STORAGE__CNN_URL: /data/indexer.sqlite
+      RUST_LOG: info
+    ports:
+      - "127.0.0.1:8080:8088"
+    volumes:
+      - /mnt/persist/indexer-standalone:/data
+    networks:
+      - constrained-app
+
+volumes:
+  caddy_data:
+  caddy_config:
+  static_attestation:
+
+networks:
+  internet-access:
+    driver: bridge
+  constrained-attestation:
+    driver: bridge
+    internal: true
+  constrained-app:
+    driver: bridge
+    internal: true

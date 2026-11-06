@@ -1,0 +1,31 @@
+[package]
+name = "temenos-egress-proxy"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.89"
+description = "Measured-policy outbound CONNECT proxy for Veritee guests"
+publish = false
+
+[dependencies]
+anyhow = "=1.0.103"
+clap = { version = "=4.6.1", features = ["derive"] }
+hickory-resolver = { version = "=0.26.3", default-features = false, features = ["tokio"] }
+httparse = "=1.10.1"
+ipnet = "=2.12.2"
+rustls = { version = "=0.23.46", default-features = false, features = ["ring", "std"] }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.150"
+tokio = { version = "=1.53.3", features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+panic = "abort"
+strip = "symbols"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "deny"

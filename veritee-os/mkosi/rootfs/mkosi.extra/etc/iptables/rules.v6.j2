@@ -1,0 +1,42 @@
+*filter
+-N TEMENOS-APP-OUTBOUND
+-N DOCKER-USER
+-N TEMENOS-CONTAINER-EGRESS
+
+-A FORWARD -j DOCKER-USER
+-A DOCKER-USER -j TEMENOS-CONTAINER-EGRESS
+-A TEMENOS-CONTAINER-EGRESS -j DROP
+
+-A INPUT -i lo -j ACCEPT
+-A OUTPUT -o lo -j ACCEPT
+-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A OUTPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+# IPv6 control traffic required for address discovery and path MTU handling.
+-A INPUT -p ipv6-icmp --icmpv6-type destination-unreachable -j ACCEPT
+-A INPUT -p ipv6-icmp --icmpv6-type packet-too-big -j ACCEPT
+-A INPUT -p ipv6-icmp --icmpv6-type time-exceeded -j ACCEPT
+-A INPUT -p ipv6-icmp --icmpv6-type parameter-problem -j ACCEPT
+-A INPUT -p ipv6-icmp --icmpv6-type router-advertisement -j ACCEPT
+-A INPUT -p ipv6-icmp --icmpv6-type neighbor-solicitation -j ACCEPT
+-A INPUT -p ipv6-icmp --icmpv6-type neighbor-advertisement -j ACCEPT
+-A OUTPUT -p ipv6-icmp --icmpv6-type router-solicitation -j ACCEPT
+-A OUTPUT -p ipv6-icmp --icmpv6-type neighbor-solicitation -j ACCEPT
+-A OUTPUT -p ipv6-icmp --icmpv6-type neighbor-advertisement -j ACCEPT
+-A INPUT -p udp --sport 547 --dport 546 -j ACCEPT
+-A OUTPUT -p udp -d ff02::1:2 --sport 546 --dport 547 -j ACCEPT
+
+# measured-setup grants only the proxy UIDs access to measured TCP ports here.
+-A OUTPUT -j TEMENOS-APP-OUTBOUND
+
+{% if debug %}
+# Allow connections to SSH in debug images
+-A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
+{% endif %}
+# Allow inbound HTTP/HTTPS for Caddy
+-A INPUT -p tcp --dport 80  -m conntrack --ctstate NEW -j ACCEPT
+-A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
+
+-A OUTPUT -j DROP
+-A INPUT -j DROP
+COMMIT

@@ -1,0 +1,10 @@
+{
+  "secureboot": false,
+  "kerneldebug-enabled": false,
+  "sev-snp": {
+    "debug-allowed": false,
+    "migration-agent-allowed": false,
+    "ciphertext-hiding-enabled": false,
+    "ecc-enabled": true
+  }
+}

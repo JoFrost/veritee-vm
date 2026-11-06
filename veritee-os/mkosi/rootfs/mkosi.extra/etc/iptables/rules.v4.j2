@@ -1,0 +1,47 @@
+*filter
+-N TEMENOS-APP-OUTBOUND
+-N DOCKER-USER
+-N TEMENOS-CONTAINER-EGRESS
+
+# Stay fail-closed before Docker starts and while it restarts. measured-setup
+# replaces the deny-only chain with the measured DApp grants.
+-A FORWARD -j DOCKER-USER
+-A DOCKER-USER -j TEMENOS-CONTAINER-EGRESS
+-A TEMENOS-CONTAINER-EGRESS -j DROP
+
+# Local traffic and replies to accepted inbound connections.
+-A INPUT -i lo -j ACCEPT
+-A OUTPUT -o lo -j ACCEPT
+-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A OUTPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+# Azure DHCP, metadata and wireserver endpoints required by the guest. DHCP
+# discovery is broadcast before the guest has an address; renewals are unicast.
+-A INPUT -p udp --sport 67 --dport 68 -j ACCEPT
+-A OUTPUT -p udp -d 255.255.255.255 --sport 68 --dport 67 -j ACCEPT
+-A OUTPUT -p udp -d 168.63.129.16 --sport 68 --dport 67 -j ACCEPT
+-A OUTPUT -p tcp -d 169.254.169.254 --dport 80 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+-A OUTPUT -p tcp -d 168.63.129.16 --dport 80 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+-A OUTPUT -p tcp -d 168.63.129.16 --dport 32526 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+
+# measured-setup gives only the two unprivileged proxy users access to the
+# declared TCP ports and Azure DNS. Every other host process remains denied.
+-A OUTPUT -j TEMENOS-APP-OUTBOUND
+
+# The host attestation server is reached by Caddy through a Docker bridge.
+# Public clients use Caddy on port 443; never expose port 8000 on the VM NIC.
+-A INPUT -i br+ -p tcp --dport 8000 -m conntrack --ctstate NEW -j ACCEPT
+# DApp containers can reach only the measured hostname proxy on the host. The
+# platform proxy binds loopback and is deliberately unreachable from bridges.
+-A INPUT -i br+ -p tcp --dport 18080 -m conntrack --ctstate NEW -j ACCEPT
+{% if debug %}
+# Allow connections to SSH in debug images
+-A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
+{% endif %}
+# Allow inbound HTTP/HTTPS for Caddy
+-A INPUT -p tcp --dport 80  -m conntrack --ctstate NEW -j ACCEPT
+-A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
+
+-A OUTPUT -j DROP
+-A INPUT -j DROP
+COMMIT

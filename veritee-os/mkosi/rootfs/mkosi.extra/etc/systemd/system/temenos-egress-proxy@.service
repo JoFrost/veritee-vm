@@ -1,0 +1,34 @@
+[Unit]
+Description=Veritee measured egress proxy (%i)
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/run/temenos/egress-policy.json
+StartLimitIntervalSec=30
+StartLimitBurst=3
+
+[Service]
+Type=exec
+User=temenos-egress-%i
+Group=temenos-egress-%i
+ExecStart=/usr/local/bin/temenos-egress-proxy --policy-file /run/temenos/egress-policy.json --scope %i --allow-client-cidr 127.0.0.0/8 --allow-client-cidr 172.30.255.0/24 --dns-server 168.63.129.16
+Restart=on-failure
+RestartSec=2
+
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectControlGroups=yes
+ProtectHome=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=strict
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictRealtime=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077

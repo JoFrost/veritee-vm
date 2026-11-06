@@ -1,0 +1,20 @@
+[Unit]
+Description=Mount data disk and run setup script
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+StartLimitIntervalSec=infinity
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=DM_DISABLE_UDEV=1
+ExecStartPre=/bin/sh /usr/lib/temenos/mount-persist
+ExecStart=/usr/bin/python3 /opt/measured_setup/main.py
+TimeoutStartSec=300
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

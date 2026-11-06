@@ -1,0 +1,47 @@
+[Unit]
+Description=Veritee attested-channel / attestation server
+Documentation=https://github.com/input-output-hk/veritee-vm/blob/main/docs/attested-channel-implementation-plan.md
+# TPM + network required for MAA/HCL attestation; measured-setup mounts the app
+# disk and brings up the DApp containers the /proxy hop forwards to. Ordering
+# keeps normal boot deterministic while leaving attestation available to
+# diagnose a failed measured setup.
+After=network-online.target measured-setup.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/attestation_server
+Restart=always
+RestartSec=5
+
+# Persisted boot/epoch counter lives here (`epoch` file).
+StateDirectory=attestation_server
+Environment=AKX_EPOCH_FILE=/var/lib/attestation_server/epoch
+
+# Host → DApp decrypt-and-forward hop. The app container publishes loopback-only
+# port 8080 (see projects/*/run.d/docker-compose.yml).
+Environment=DAPP_UPSTREAM_URL=http://127.0.0.1:8080
+# Written from verified DApp metadata only after measured setup succeeds.
+# Missing policy denies forwarding while leaving attestation available.
+Environment=DAPP_PROXY_POLICY_FILE=/run/temenos/dapp-proxy.json
+
+# MAA and other platform HTTPS calls use the measured platform-host policy.
+# Local DApp forwarding must never leave through the egress proxy.
+Environment=HTTP_PROXY=http://127.0.0.1:18081
+Environment=HTTPS_PROXY=http://127.0.0.1:18081
+Environment=http_proxy=http://127.0.0.1:18081
+Environment=https_proxy=http://127.0.0.1:18081
+Environment=NO_PROXY=127.0.0.1,localhost,::1,169.254.169.254,168.63.129.16
+Environment=no_proxy=127.0.0.1,localhost,::1,169.254.169.254,168.63.129.16
+
+# Background re-attest of the current epoch key (seconds). 0 disables.
+Environment=AKX_ATTEST_REFRESH_SECS=300
+# Optional timed epoch-key rotation (seconds). 0 = rotate only at process start
+# (each boot increments the persisted counter).
+Environment=AKX_EPOCH_ROTATE_SECS=0
+
+# Ensure the TPM NSS library used by the server is findable.
+Environment=LD_LIBRARY_PATH=/usr/lib
+
+[Install]
+WantedBy=multi-user.target

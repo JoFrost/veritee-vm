@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "veritee-attestation"
+version = "0.1.0"
+description = ""
+license = "Apache-2.0"
+authors = ["Jonathan Duchateau"]
+readme = "README.md"
+packages = [{ include = "veritee_attestation" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+cryptography = "^41.0.5"
+requests = "^2.31.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

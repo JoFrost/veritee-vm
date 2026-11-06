@@ -1,0 +1,357 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:temenos:os-release:v1",
+  "title": "Veritee OS release approval, phase one, recipe version one",
+  "$comment": "Use the named definitions for each document. Implementations also enforce canonical UTF-8, byte budgets, trusted enrollment/audience/source policy, exact mode consistency, timestamps and signature validity. This recipe rejects dirty sources and artifact sets other than disk.raw + pcrs.json.",
+  "$ref": "#/$defs/releaseManifest",
+  "$defs": {
+    "releaseManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "release_id",
+        "release_version",
+        "attestation_mode",
+        "source",
+        "build",
+        "publication",
+        "artifacts",
+        "measurements"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "release_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "release_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "attestation_mode": {
+          "enum": [
+            "maa",
+            "raw-sev-snp"
+          ]
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "commit",
+            "tree",
+            "modified"
+          ],
+          "properties": {
+            "repository": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://"
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "tree": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "modified": {
+              "const": false
+            }
+          }
+        },
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "command",
+            "recipe_version",
+            "earthly_target",
+            "profile",
+            "configuration",
+            "arguments"
+          ],
+          "properties": {
+            "command": {
+              "const": "build-base-os-image"
+            },
+            "recipe_version": {
+              "const": 1
+            },
+            "earthly_target": {
+              "enum": [
+                "+temen-os-tpm",
+                "+veritee-os-azure-snp"
+              ]
+            },
+            "profile": {
+              "const": "azure-snp"
+            },
+            "configuration": {
+              "enum": [
+                "config-snp-azure.yaml",
+                "config-azure.yaml"
+              ]
+            },
+            "arguments": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ATTESTATION_MODE",
+                "ALLOW_UNBOUND_ATTESTATION"
+              ],
+              "properties": {
+                "ATTESTATION_MODE": {
+                  "enum": [
+                    "maa",
+                    "raw-sev-snp"
+                  ]
+                },
+                "ALLOW_UNBOUND_ATTESTATION": {
+                  "const": false
+                }
+              }
+            }
+          }
+        },
+        "publication": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "platform"
+          ],
+          "properties": {
+            "reference": {
+              "type": "string",
+              "maxLength": 512,
+              "pattern": "^[a-z0-9.-]+/[a-z0-9_./-]+(?::[A-Za-z0-9_.-]+)?@sha256:[0-9a-f]{64}$"
+            },
+            "platform": {
+              "const": "linux/amd64"
+            }
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "sha256",
+                "size"
+              ],
+              "properties": {
+                "name": {
+                  "const": "disk.raw"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "size": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,19}$"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "sha256",
+                "size"
+              ],
+              "properties": {
+                "name": {
+                  "const": "pcrs.json"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "size": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,19}$"
+                }
+              }
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "measurements": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pcr4",
+            "pcr4_bank",
+            "pcr4_profile"
+          ],
+          "properties": {
+            "pcr4": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "pcr4_bank": {
+              "const": "sha256"
+            },
+            "pcr4_profile": {
+              "const": "azure_cvm"
+            }
+          }
+        }
+      }
+    },
+    "approvalPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "type",
+        "operation",
+        "request_id",
+        "audience",
+        "release_manifest_digest",
+        "release_id",
+        "decision",
+        "signed_at",
+        "expires_at"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "type": {
+          "const": "temenos_os_release_approval"
+        },
+        "operation": {
+          "const": "approve_release"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "audience": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "warden_id",
+            "network",
+            "os_registry_address"
+          ],
+          "properties": {
+            "warden_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+            },
+            "network": {
+              "enum": [
+                "preprod",
+                "preview",
+                "standalone",
+                "mainnet"
+              ]
+            },
+            "os_registry_address": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "release_manifest_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "release_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "decision": {
+          "const": "approve"
+        },
+        "signed_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "expires_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        }
+      }
+    },
+    "protectedHeader": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alg",
+        "kid",
+        "typ"
+      ],
+      "properties": {
+        "alg": {
+          "const": "ES256"
+        },
+        "kid": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "typ": {
+          "const": "application/temenos-os-release-approval+jws"
+        }
+      }
+    },
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest",
+        "jws"
+      ],
+      "properties": {
+        "manifest": {
+          "type": "string",
+          "contentMediaType": "application/json",
+          "contentSchema": {
+            "$ref": "#/$defs/releaseManifest"
+          }
+        },
+        "jws": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "protected",
+            "payload",
+            "signature"
+          ],
+          "properties": {
+            "protected": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "payload": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "signature": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "minLength": 86,
+              "maxLength": 86
+            }
+          }
+        }
+      }
+    }
+  }
+}
