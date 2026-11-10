@@ -19,7 +19,7 @@ CADDY = "caddy@sha256:25cdc846626b62d05f6b633b9b40c2c9f6ef89b515dc76133cefd920f7
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--app-dir", type=Path, default=ROOT / "projects/dapp")
+    parser.add_argument("--app-dir", type=Path, default=ROOT / "examples/dapp")
     parser.add_argument("--app-port", type=int, choices=(80, 6300), default=80)
     args = parser.parse_args()
     authored = yaml.safe_load((args.app_dir / "run.d/docker-compose.yml").read_text())

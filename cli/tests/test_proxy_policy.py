@@ -40,7 +40,7 @@ class ProxyPolicyTests(unittest.TestCase):
     def test_proof_app_routes_are_preserved_by_packaging(self):
         for app in ("proof_server_prepod", "proof_server_mainnet", "proof_server_preview"):
             with self.subTest(app=app):
-                source = REPO_ROOT / "projects" / app / "metadata.json"
+                source = REPO_ROOT / "examples" / app / "metadata.json"
                 original = source.read_bytes()
                 metadata = json.loads(original)
                 packaged = prepare_shipped_metadata(

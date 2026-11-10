@@ -13,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 class IngressPolicyTests(unittest.TestCase):
     def test_guest_attestation_is_private_and_agrees_with_the_startup_hook(self):
-        for path in sorted((REPO_ROOT / "projects").glob("*/run.d/docker-compose.yml")):
+        for path in sorted((REPO_ROOT / "examples").glob("*/run.d/docker-compose.yml")):
             with self.subTest(project=path.parents[1].name):
                 compose = yaml.safe_load(path.read_text())
                 helper = compose["services"]["guest-attestation"]
@@ -31,7 +31,7 @@ class IngressPolicyTests(unittest.TestCase):
                 self.assertNotIn("constrained-attestation", compose["services"]["app"]["networks"])
                 hook = path.parent / "main"
                 if not hook.exists():
-                    hook = REPO_ROOT / "projects/templates/run.d/main"
+                    hook = REPO_ROOT / "veritee-os/app-disk/run.d/main"
                 self.assertIn("cat > .guest-attestation.env", hook.read_text())
 
     def test_azure_nsg_does_not_expose_attestation_port(self):
@@ -61,7 +61,7 @@ class IngressPolicyTests(unittest.TestCase):
 
     def test_caddy_keeps_public_tls_attestation_route(self):
         caddyfile = (
-            REPO_ROOT / "projects/dapp/run.d/Caddyfile.template"
+            REPO_ROOT / "examples/dapp/run.d/Caddyfile.template"
         ).read_text()
 
         self.assertIn("handle_path /tee_attestation*", caddyfile)
@@ -69,7 +69,7 @@ class IngressPolicyTests(unittest.TestCase):
 
     def test_proof_server_host_hop_is_loopback_only_on_caddy(self):
         compose_path = (
-            REPO_ROOT / "projects/proof_server_prepod/run.d/docker-compose.yml"
+            REPO_ROOT / "examples/proof_server_prepod/run.d/docker-compose.yml"
         )
         compose = yaml.safe_load(compose_path.read_text())
 
@@ -81,7 +81,7 @@ class IngressPolicyTests(unittest.TestCase):
 
     def test_proof_server_host_hop_preserves_upstream_paths_and_public_hosts(self):
         caddyfile = (
-            REPO_ROOT / "projects/proof_server_prepod/run.d/Caddyfile.template"
+            REPO_ROOT / "examples/proof_server_prepod/run.d/Caddyfile.template"
         ).read_text()
         host_hop = caddyfile.split("http://:8080 {", 1)[1]
 

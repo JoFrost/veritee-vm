@@ -154,7 +154,7 @@ class RegistrationInputTests(unittest.TestCase):
                     cli.validate_attestation_domain_name(value)
 
     def test_load_register_app_disk_files_reads_selected_app_dir(self):
-        app_dir = Path("projects/dapp")
+        app_dir = Path("examples/dapp")
 
         self.assertEqual(
             cli.load_register_app_disk_files(app_dir),
@@ -206,7 +206,7 @@ class RegistrationInputTests(unittest.TestCase):
             )
 
     def test_default_attestation_domain_from_caddyfile_uses_first_site_host(self):
-        caddyfile = Path("projects/dapp/run.d/Caddyfile.template").read_text()
+        caddyfile = Path("examples/dapp/run.d/Caddyfile.template").read_text()
 
         self.assertEqual(
             cli.default_attestation_domain_from_caddyfile(caddyfile),
@@ -214,7 +214,7 @@ class RegistrationInputTests(unittest.TestCase):
         )
 
     def test_generic_template_shared_upstream_keeps_both_tls_hostnames(self):
-        caddyfile = Path("projects/dapp/run.d/Caddyfile.template")
+        caddyfile = Path("examples/dapp/run.d/Caddyfile.template")
         expected = [
             "attestation-endpoint.api.mydapp.midnight.io",
             "api.mydapp.midnight.io",
@@ -222,7 +222,7 @@ class RegistrationInputTests(unittest.TestCase):
         self.assertEqual(cli.caddyfile_site_hosts(caddyfile), expected)
 
         # Run the guest's actual hostname extractor against the same template.
-        startup = Path("projects/templates/run.d/main").read_text()
+        startup = Path("veritee-os/app-disk/run.d/main").read_text()
         start = startup.index("site_host() {")
         end = startup.index("\n}\n", start) + 2
         result = subprocess.run(
@@ -261,9 +261,9 @@ class RegistrationInputTests(unittest.TestCase):
             root = Path(tmpdir)
             metadata_file = root / "metadata.json"
             metadata_file.write_text(
-                Path("projects/dapp/metadata.json").read_text()
+                Path("examples/dapp/metadata.json").read_text()
             )
-            app_source_root = root / "projects"
+            app_source_root = root / "examples"
             app_source_root.mkdir()
 
             with mock.patch.object(cli, "APP_SOURCE_ROOT", app_source_root):
@@ -282,7 +282,7 @@ class RegistrationInputTests(unittest.TestCase):
             )
 
     def test_caddyfile_site_hosts_ignores_global_options_block(self):
-        caddyfile = Path("projects/recovery-proverd/run.d/Caddyfile.template").read_text()
+        caddyfile = Path("examples/recovery-proverd/run.d/Caddyfile.template").read_text()
 
         self.assertEqual(
             cli.caddyfile_site_hosts(caddyfile),
@@ -293,7 +293,7 @@ class RegistrationInputTests(unittest.TestCase):
         )
 
     def test_single_caddy_site_is_both_attestation_and_api_host(self):
-        app_dir = Path("projects/warden")
+        app_dir = Path("examples/warden")
 
         self.assertEqual(
             cli.default_register_attestation_domain("azure_vault", app_dir),
@@ -314,7 +314,7 @@ class AppBuildSourceTests(unittest.TestCase):
         self.assertEqual(cli.resolve_persist_size(None, {}), cli.DEFAULT_PERSIST_SIZE)
 
     def test_warden_metadata_requests_persistent_build_cache_capacity(self):
-        metadata = cli.load_app_source_metadata(Path("projects/warden"))
+        metadata = cli.load_app_source_metadata(Path("examples/warden"))
 
         self.assertEqual(metadata["persist_size"], "32G")
 
@@ -384,10 +384,7 @@ networks:
                 ) as (staged_dir_name, staged_metadata):
                     staged_dir = Path(staged_dir_name)
                     self.assertTrue(staged_dir.is_dir())
-                    self.assertEqual(
-                        (staged_dir.parent / "10-app.conf").read_text(),
-                        repart_definition.read_text(),
-                    )
+                    self.assertFalse((staged_dir.parent / "10-app.conf").exists())
                     self.assertEqual(
                         json.loads((staged_dir / cli.APP_METADATA_FILE).read_text()),
                         shipped_metadata,
@@ -2026,7 +2023,7 @@ class EnvironmentAndCommandHelperTests(unittest.TestCase):
     def test_earthly_command_supplies_empty_optional_dockerhub_secrets(self):
         with mock.patch.dict(os.environ, {}, clear=True):
             command = cli.build_earthly_app_disk_command(
-                app_dir="projects/dapp",
+                app_dir="examples/dapp",
                 app_container_image="docker.io/example/app@sha256:abc",
                 guest_attestation_image="docker.io/example/attester@sha256:def",
                 registry="example.azurecr.io",

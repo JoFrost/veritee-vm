@@ -7,9 +7,9 @@ First configure the application metadata with digest-pinned app and approved
 base OS image references. The reference app's tag-only placeholders are rejected.
 
 ```sh
-veritee validate-dapp --app-dir projects/my-app --tls-mode internal
+veritee validate-dapp --app-dir examples/my-app --tls-mode internal
 
-veritee validate-dapp --app-dir projects/my-app --tls-mode azure_vault \
+veritee validate-dapp --app-dir examples/my-app --tls-mode azure_vault \
   --tls-keyvault-name <runtime-tls-vault>
 ```
 
@@ -68,6 +68,12 @@ intentional change. Warden remains responsible for its current recipe and OS
 registry; local validation is not a guarantee of admission by an arbitrary server.
 Older packages without a snapshot retain legacy registration behavior without
 a claim that source drift was checked.
+
+The snapshot compares file contents and directory names. The Earthly recipe
+normalizes the accepted app tree's modes before measuring it: directories use
+0755, files use 0644, and the two `main` hooks use 0755. Changing those source
+modes does not change the measured app. Source Git metadata is excluded from
+the snapshot and build; see [external application folders](project-configuration.md).
 
 `run.d/certs/`, including its README, is excluded before staging and removed in
 all Earthly app-copy targets. It is never an app-disk input. The launcher creates
