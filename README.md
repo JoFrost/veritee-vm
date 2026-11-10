@@ -130,9 +130,9 @@ policy, OS release approval and deployment lifecycle. They are described in the
 Packaging checks bundled registration limits and rebuild inputs locally before
 pulling images. Replace the example metadata's placeholder image references with
 digest pins, then run `veritee validate-dapp --app-dir projects/dapp` to check
-them independently, without contacting Warden. See [packaging
-preflight](docs/packaging-preflight.md) for input snapshots, certificate exclusion
-and the `--no-registration-preflight` option for operator images.
+them independently, without contacting Warden. Packages record input hashes
+outside the measured disk and exclude generated `run.d/certs/`. Operator images
+that will not be registered can use `--no-registration-preflight`.
 
 ## Terminology
 
