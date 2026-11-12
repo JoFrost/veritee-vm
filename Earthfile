@@ -215,6 +215,7 @@ verified-docker-apt:
 
 test-docker-apt-install:
     FROM +debian-systemd
+    CACHE /var/cache/mkosi
     RUN apt-get install --assume-yes --no-install-recommends \
         python3-pip=25.1.1+dfsg-1 python3-venv=3.13.5-1 pipx=1.7.1-1 \
         ubuntu-keyring=2023.11.28.1-0.2 apt-utils=3.0.4
@@ -223,12 +224,18 @@ test-docker-apt-install:
     COPY --dir veritee-os/docker-apt .
     COPY (+verified-docker-apt/docker-packages) docker-packages
     COPY --dir veritee-os/mkosi/rootfs/mkosi.pkgmngr .
-    RUN --privileged python3 docker-apt/install_test.py \
-        /root/.local/bin/mkosi docker-packages mkosi.pkgmngr install-result.json
+    RUN --privileged for attempt in 1 2 3 4; do \
+            if python3 docker-apt/install_test.py \
+                /root/.local/bin/mkosi docker-packages mkosi.pkgmngr install-result.json; then exit 0; fi; \
+            [ "$attempt" -lt 4 ] || exit 1; \
+            sleep 5; \
+        done
     SAVE ARTIFACT install-result.json /install-result.json
 
 veritee-os-azure-snp:
     FROM +debian-systemd
+    # Keep verified package downloads when a snapshot request needs a retry.
+    CACHE /var/cache/mkosi
 
     # Ensure reproducible builds by fixing the source date epoch
     # Fixed to 2000-01-01T00:00:00Z.
@@ -267,7 +274,11 @@ veritee-os-azure-snp:
     COPY veritee-os/mkosi/initrd .
     RUN /root/.local/bin/render_template "../$OS_CONFIG" mkosi.conf.j2
     
-    RUN --privileged /root/.local/bin/mkosi --debug
+    RUN --privileged for attempt in 1 2 3 4; do \
+            if /root/.local/bin/mkosi --debug; then exit 0; fi; \
+            [ "$attempt" -lt 4 ] || exit 1; \
+            sleep 5; \
+        done
 
     SAVE ARTIFACT image AS LOCAL local-base-os/initrd_image.cpio.zst
     SAVE ARTIFACT image.manifest AS LOCAL local-base-os/initrd.manifest
@@ -318,7 +329,11 @@ veritee-os-azure-snp:
 
     # RUN --privileged error
 
-    RUN --privileged /root/.local/bin/mkosi --debug
+    RUN --privileged for attempt in 1 2 3 4; do \
+            if /root/.local/bin/mkosi --debug; then exit 0; fi; \
+            [ "$attempt" -lt 4 ] || exit 1; \
+            sleep 5; \
+        done
 
     # RUN  --privileged error
 
