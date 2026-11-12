@@ -48,6 +48,17 @@ debian-systemd:
     apt-get update
     ENV DEBIAN_FRONTEND=noninteractive
 
+    # Pin the build-time APT fix for delayed-download memory exhaustion.
+    # The guest's Ubuntu repositories and package pins remain separate.
+    RUN printf '%s\n' \
+        'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/20261105T000000Z/ trixie-security main' \
+        > /etc/apt/sources.list.d/apt-security.list && \
+        apt-get update && \
+        apt-get install --assume-yes --no-install-recommends \
+            apt=3.0.4 libapt-pkg7.0=3.0.4 apt-utils=3.0.4 && \
+        rm /etc/apt/sources.list.d/apt-security.list && \
+        apt-get update
+
     RUN apt-get install --assume-yes --no-install-recommends \
         ca-certificates=20250419 && \
         rm -f /etc/apt/apt.conf.d/00veritee-bootstrap-ca \
@@ -206,7 +217,7 @@ test-docker-apt-install:
     FROM +debian-systemd
     RUN apt-get install --assume-yes --no-install-recommends \
         python3-pip=25.1.1+dfsg-1 python3-venv=3.13.5-1 pipx=1.7.1-1 \
-        ubuntu-keyring=2023.11.28.1-0.2 apt-utils=3.0.3
+        ubuntu-keyring=2023.11.28.1-0.2 apt-utils=3.0.4
     RUN pipx install git+https://github.com/systemd/mkosi.git@0f11ffe01a96fd0f6731bd2c98246ee19f2add16
     WORKDIR /workdir
     COPY --dir veritee-os/docker-apt .
@@ -238,7 +249,7 @@ veritee-os-azure-snp:
     'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20251208T000000Z/ trixie main contrib non-free non-free-firmware' \
     > /etc/apt/sources.list && \
     apt-get update
-    RUN apt-get install --assume-yes --no-install-recommends dosfstools=4.2-1.2 cpio=2.15+dfsg-2 zstd=1.5.7+dfsg-1 kmod=34.2-2 ubuntu-keyring=2023.11.28.1-0.2 curl=8.14.1-2+deb13u2 wget=1.25.0-2 reprepro=5.4.6+really5.3.2-1 apt-utils=3.0.3
+    RUN apt-get install --assume-yes --no-install-recommends dosfstools=4.2-1.2 cpio=2.15+dfsg-2 zstd=1.5.7+dfsg-1 kmod=34.2-2 ubuntu-keyring=2023.11.28.1-0.2 curl=8.14.1-2+deb13u2 wget=1.25.0-2 reprepro=5.4.6+really5.3.2-1 apt-utils=3.0.4
     WORKDIR /workdir
     COPY (+verified-docker-apt/docker-packages) docker-packages
 
@@ -350,7 +361,7 @@ veritee-os-azure-snp-combined:
     'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/20251208T000000Z/ trixie main contrib non-free non-free-firmware' \
     > /etc/apt/sources.list && \
     apt-get update
-    RUN apt-get install --assume-yes --no-install-recommends dosfstools=4.2-1.2 cpio=2.15+dfsg-2 zstd=1.5.7+dfsg-1 kmod=34.2-2 ubuntu-keyring=2023.11.28.1-0.2 curl=8.14.1-2+deb13u2 wget=1.25.0-2 reprepro=5.4.6+really5.3.2-1 apt-utils=3.0.3
+    RUN apt-get install --assume-yes --no-install-recommends dosfstools=4.2-1.2 cpio=2.15+dfsg-2 zstd=1.5.7+dfsg-1 kmod=34.2-2 ubuntu-keyring=2023.11.28.1-0.2 curl=8.14.1-2+deb13u2 wget=1.25.0-2 reprepro=5.4.6+really5.3.2-1 apt-utils=3.0.4
     WORKDIR /workdir
     COPY (+verified-docker-apt/docker-packages) docker-packages
 
