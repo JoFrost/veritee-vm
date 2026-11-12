@@ -27,6 +27,7 @@ def main():
         pins = ["passwd=1:4.8.1-2ubuntu2.2", *[f"{p['name']}={p['version']}" for p in lock["packages"]]]
         (root / "mkosi.conf").write_text(
             "[Distribution]\nDistribution=ubuntu\nRelease=jammy\nArchitecture=x86-64\n"
+            "[Build]\nExtraSearchPaths=../../systemd/build\n"
             "[Content]\nBootable=no\nWithRecommends=no\n"
             f"PackageDirectories={packages}\nPackageDirectories={extra}\n"
             "Packages=" + "\n ".join([*pins, "veritee-local-package-test=1"]) + "\n"
