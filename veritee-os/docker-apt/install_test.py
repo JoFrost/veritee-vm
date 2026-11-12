@@ -23,7 +23,8 @@ def main():
                            "Maintainer: Test <test@example.invalid>\nDescription: local input fixture\n")
         subprocess.run(["dpkg-deb", "--build", "--root-owner-group", str(control.parent.parent),
                         str(extra / "fixture.deb")], check=True)
-        pins = [f"{p['name']}={p['version']}" for p in lock["packages"]]
+        # Docker postinst uses groupadd; the full rootfs gets passwd via D-Bus.
+        pins = ["passwd=1:4.8.1-2ubuntu2.2", *[f"{p['name']}={p['version']}" for p in lock["packages"]]]
         (root / "mkosi.conf").write_text(
             "[Distribution]\nDistribution=ubuntu\nRelease=jammy\nArchitecture=x86-64\n"
             "[Content]\nBootable=no\nWithRecommends=no\n"
